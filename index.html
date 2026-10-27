@@ -290,6 +290,21 @@ section{position:relative}
 .psst{margin-top:50px;font-size:13px;opacity:.55;letter-spacing:.05em}
 footer{text-align:center;padding:30px 16px 50px;font-size:14px;opacity:.7}
 
+/* ---------- MUSIC ---------- */
+#music{position:fixed;right:18px;bottom:18px;z-index:80;display:flex;align-items:center;gap:10px;background:#fffaf0;border:4px solid var(--ink);border-radius:999px;
+  padding:6px 16px 6px 6px;box-shadow:4px 4px 0 var(--ink);cursor:pointer;opacity:0;transform:translateY(20px);pointer-events:none;transition:opacity .5s,transform .5s cubic-bezier(.3,1.6,.5,1)}
+#music.show{opacity:1;transform:none;pointer-events:auto}
+#music:hover{transform:rotate(-2deg) scale(1.04)}
+.vinyl{width:44px;height:44px;border-radius:50%;flex:none;position:relative;
+  background:radial-gradient(circle,var(--tomato) 0 22%,#111 23% 28%,#2a2a2a 29% 34%,#111 35% 44%,#2a2a2a 45% 52%,#111 53%);animation:spin 3s linear infinite;animation-play-state:paused}
+.vinyl::after{content:'';position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:#fffaf0}
+#music.playing .vinyl{animation-play-state:running}
+@keyframes spin{to{transform:rotate(360deg)}}
+.track-info{display:flex;flex-direction:column;line-height:1.1;text-align:left}
+.track-info b{font-size:13px}
+.track-info span{font-family:var(--hand);font-size:18px;opacity:.75}
+@media (max-width:600px){#music{padding:5px;right:12px;bottom:12px}.track-info{display:none}}
+
 /* ---------- FX ---------- */
 .fx{position:fixed;pointer-events:none;z-index:9999;will-change:transform,opacity;left:0;top:0}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -478,6 +493,12 @@ footer{text-align:center;padding:30px 16px 50px;font-size:14px;opacity:.7}
   <p class="psst">P.S. try typing “izzy” anywhere on this page</p>
 </section>
 
+<audio id="song" src="photos/song.mp3" loop preload="auto"></audio>
+<button id="music" aria-label="Pause music">
+  <span class="vinyl"></span>
+  <span class="track-info"><b>You're On My Mind</b><span id="musicState">now playing ♪</span></span>
+</button>
+
 <footer>made with ♥ and a lot of lines of code · Izzy &amp; Alex · est. 01.11.25</footer>
 
 <!-- ====== MODALS ====== -->
@@ -579,14 +600,37 @@ function rain(ch,n=50){
 
 /* ---------- INTRO ---------- */
 const env=$('#envelope'), intro=$('#intro');
-const closeIntro=()=>{intro.classList.add('gone');document.body.classList.remove('locked')};
+const song=$('#song'), musicBtn=$('#music');
+let fadeT;
+function fadeTo(target,ms=1800,done){
+  clearInterval(fadeT); const start=song.volume, t0=performance.now();
+  fadeT=setInterval(()=>{const k=Math.min(1,(performance.now()-t0)/ms); song.volume=start+(target-start)*k; if(k>=1){clearInterval(fadeT); done&&done()}},40);
+}
+function playSong(){
+  song.volume=0;
+  const p=song.play();
+  if(p&&p.then) p.then(()=>fadeTo(.6,2500)).catch(()=>setMusicUI(false)); else fadeTo(.6,2500);
+}
+function setMusicUI(on){
+  musicBtn.classList.toggle('playing',on);
+  $('#musicState').textContent= on ? 'now playing ♪' : 'paused · tap to play';
+  musicBtn.setAttribute('aria-label', on ? 'Pause music' : 'Play music');
+}
+song.addEventListener('play',()=>setMusicUI(true));
+song.addEventListener('pause',()=>setMusicUI(false));
+musicBtn.onclick=()=>{
+  if(song.paused){song.volume=0;song.play().then(()=>fadeTo(.6,800)).catch(()=>{})}
+  else fadeTo(0,500,()=>song.pause());
+};
+const closeIntro=()=>{intro.classList.add('gone');document.body.classList.remove('locked');musicBtn.classList.add('show')};
 $('#seal').onclick=()=>{
   if(env.classList.contains('open')) return;
+  playSong();
   env.classList.add('open');
   setTimeout(()=>{const r=env.getBoundingClientRect();burst(r.left+r.width/2,r.top,50)},800);
   setTimeout(closeIntro,3600);
 };
-$('#skip').onclick=closeIntro;
+$('#skip').onclick=()=>{playSong();closeIntro()};
 
 /* ---------- HERO ---------- */
 (function(){
